@@ -113,6 +113,22 @@ def compress_response(response):
     response.headers['Content-Length'] = len(compressed)
     return response
 
+@app.after_request
+def add_cache_control(response):
+    """Add cache control and Expires headers to static assets for performance optimization."""
+    if request.method != 'GET' or response.status_code != 200:
+        return response
+    path = request.path.lower()
+    if any(path.endswith(ext) for ext in ['.css', '.js', '.woff', '.woff2', '.ttf', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico']):
+        # Set max-age to 1 year (31536000 seconds) with public access and immutable flag
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        # Add Expires header (1 year in the future)
+        import datetime
+        expires = datetime.datetime.utcnow() + datetime.timedelta(days=365)
+        response.headers['Expires'] = expires.strftime('%a, %d %b %Y %H:%M:%S GMT')
+    return response
+
+
 import logging
 from logging.handlers import RotatingFileHandler
 
