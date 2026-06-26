@@ -1,0 +1,1939 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="UTCL Internal Transport and Bus Management System. Real-time shift scheduling, seat bookings, and driver attendance tracking.">
+    <title>UTCL Bus Management System</title>
+    <!-- Favicon -->
+    <link class="icon-tag" rel="icon" type="image/svg+xml" href="favicon.svg?v=1.0.4">
+    <!-- Google Fonts -->
+    <link rel="stylesheet" href="fonts/fonts.css">
+    <!-- Socket.IO client - local copy (no external CDN, works offline on LAN) -->
+    <script src="js/socket.io.min.js" defer></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Top-level Application Container -->
+    <div id="app-container">
+
+        <!-- Global Header (Visible when logged in) -->
+        <header id="global-header" class="hidden">
+            <div class="header-brand">
+                <!-- UTCL Logo SVG -->
+                <svg class="utcl-logo" viewBox="0 0 200 80" width="150" height="60" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="200" height="80" fill="#FFED00" rx="4" />
+                    <text x="10" y="38" font-family="'Arial Black', 'Impact', sans-serif" font-weight="900"
+                        font-style="italic" font-size="28" fill="#000000" letter-spacing="-1.5">UltraTech</text>
+                    <path d="M 18,45 L 190,45 C 185,53 184,57 182,61 L 10,61 C 15,53 16,49 18,45 Z" fill="#000000" />
+                    <text x="100" y="54" font-family="'Arial Black', 'Arial', sans-serif" font-weight="900"
+                        font-size="10.5" fill="#FFFFFF" letter-spacing="4" text-anchor="middle"
+                        dominant-baseline="central">C E M E N T</text>
+                    <text x="10" y="73" font-family="'Arial', sans-serif" font-style="italic" font-weight="bold"
+                        font-size="8.5" fill="#000000" letter-spacing="0.5">The Engineer's Choice</text>
+                </svg>
+            </div>
+
+            <div class="header-user-menu flex items-center gap-4 justify-end ml-auto">
+                <!-- Notification Bell -->
+                <div class="notification-container relative">
+                    <button id="notification-bell" class="icon-btn" onclick="app.toggleNotifications(event)"
+                        aria-label="Notifications">
+                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2"
+                            fill="none">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                        <span id="notification-count" class="badge badge-danger hidden">0</span>
+                    </button>
+                    <!-- Notification Dropdown -->
+                    <div id="notification-dropdown" class="dropdown-menu hidden">
+                        <div class="dropdown-header">
+                            <h3>Notifications</h3>
+                            <button class="text-btn text-xs" onclick="app.markAllNotificationsRead()">Mark all
+                                read</button>
+                        </div>
+                        <div id="notification-list" class="dropdown-list">
+                            <div class="empty-state">No new notifications</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile Dropdown Container -->
+                <div class="profile-dropdown-container relative">
+                    <button class="user-profile-badge cursor-pointer focus:outline-none" id="profile-dropdown-trigger"
+                        onclick="app.toggleProfileDropdown(event)">
+                        <div class="avatar" id="header-avatar">U</div>
+                        <div class="user-info">
+                            <span class="user-name" id="header-user-name">User Name</span>
+                            <span class="user-role" id="header-user-role">Employee</span>
+                        </div>
+                    </button>
+                    <!-- Dropdown Menu -->
+                    <div id="profile-dropdown"
+                        class="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-100 rounded-xl shadow-lg py-1 z-50 hidden">
+                        <!-- Option 1: Change Password -->
+                        <button onclick="app.openModal('change-password-modal'); app.closeProfileDropdown()"
+                            class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-left font-medium">
+                            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2"
+                                fill="none" class="text-slate-400">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            <span>Change Password</span>
+                        </button>
+                        <hr class="border-t border-slate-100" />
+                        <!-- Option 2: Sign Out -->
+                        <button onclick="app.logout(); app.closeProfileDropdown()"
+                            class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-left font-medium">
+                            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2"
+                                fill="none" class="text-slate-400">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+                            </svg>
+                            <span>Sign Out</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dynamic Main Content Area -->
+        <main id="main-content">
+
+            
+            <section id="view-login" class="view-panel active">
+                <div class="login-card glass-panel">
+                    <div class="login-logo-container">
+                        <svg viewBox="0 0 200 80" width="220" height="88" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="200" height="80" fill="#FFED00" rx="4" />
+                            <text x="10" y="38" font-family="'Arial Black', 'Impact', sans-serif" font-weight="900"
+                                font-style="italic" font-size="28" fill="#000000" letter-spacing="-1.5">UltraTech</text>
+                            <path d="M 18,45 L 190,45 C 185,53 184,57 182,61 L 10,61 C 15,53 16,49 18,45 Z"
+                                fill="#000000" />
+                            <text x="100" y="54" font-family="'Arial Black', 'Arial', sans-serif" font-weight="900"
+                                font-size="10.5" fill="#FFFFFF" letter-spacing="4" text-anchor="middle"
+                                dominant-baseline="central">C E M E N T</text>
+                            <text x="10" y="73" font-family="'Arial', sans-serif" font-style="italic" font-weight="bold"
+                                font-size="8.5" fill="#000000" letter-spacing="0.5">The Engineer's Choice</text>
+                        </svg>
+                    </div>
+
+                    <h2 class="text-center font-outfit">Internal Transport System</h2>
+                    <p class="text-center text-muted text-sm">Please log in with your portal credentials</p>
+
+                    <form id="login-form" method="POST" onsubmit="app.handleLogin(event)">
+                        <div class="form-group">
+                            <label for="login-ps-number">PS NUMBER</label>
+                            <input type="text" id="login-ps-number" required placeholder="Enter your PS Number"
+                                maxlength="10">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="login-password">Password</label>
+                            <input type="password" id="login-password" required placeholder="••••••••">
+                            <div class="text-right mt-1">
+                                <a href="#" class="forgot-link text-xs text-primary" style="text-decoration: none;"
+                                    onclick="app.showForgotPasswordStep1(event)">Forgot Password?</a>
+                            </div>
+                        </div>
+
+                        <div id="login-error-message" class="alert alert-danger hidden">
+                            Invalid credentials. Please try again.
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-block font-outfit">SIGN IN TO
+                            DASHBOARD</button>
+                    </form>
+
+                    <!-- Forgot Password Section -->
+                    <div id="forgot-password-panel" class="hidden">
+                        <h3 class="font-outfit text-primary mb-2 text-center">Reset Password</h3>
+                        <p class="text-muted text-sm mb-4 text-center" id="forgot-password-desc">Please enter your PS
+                            Number to receive a reset OTP.</p>
+
+                        <!-- Step 1: PS Number Entry -->
+                        <div id="fp-step-1" class="fp-step">
+                            <div class="form-group">
+                                <label for="fp-ps-number">PS NUMBER</label>
+                                <input type="text" id="fp-ps-number" placeholder="Enter your PS Number" maxlength="10">
+                            </div>
+                            <div id="fp-step1-error" class="alert alert-danger hidden mb-4"></div>
+                            <button class="btn btn-primary btn-block font-outfit"
+                                onclick="app.submitForgotPasswordStep1()">SEND OTP</button>
+                        </div>
+
+                        <!-- Step 2: OTP Verification -->
+                        <div id="fp-step-2" class="fp-step hidden">
+                            <div class="form-group">
+                                <div class="otp-input-container flex gap-2 justify-center items-center my-4">
+                                    <input type="text"
+                                        class="otp-digit flex items-center justify-center text-center p-0 leading-none font-semibold text-xl border border-slate-200 rounded-xl w-14 h-14 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:outline-none"
+                                        maxlength="1" onkeyup="app.handleOtpInput(this, event)">
+                                    <input type="text"
+                                        class="otp-digit flex items-center justify-center text-center p-0 leading-none font-semibold text-xl border border-slate-200 rounded-xl w-14 h-14 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:outline-none"
+                                        maxlength="1" onkeyup="app.handleOtpInput(this, event)">
+                                    <input type="text"
+                                        class="otp-digit flex items-center justify-center text-center p-0 leading-none font-semibold text-xl border border-slate-200 rounded-xl w-14 h-14 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:outline-none"
+                                        maxlength="1" onkeyup="app.handleOtpInput(this, event)">
+                                    <input type="text"
+                                        class="otp-digit flex items-center justify-center text-center p-0 leading-none font-semibold text-xl border border-slate-200 rounded-xl w-14 h-14 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:outline-none"
+                                        maxlength="1" onkeyup="app.handleOtpInput(this, event)">
+                                    <input type="text"
+                                        class="otp-digit flex items-center justify-center text-center p-0 leading-none font-semibold text-xl border border-slate-200 rounded-xl w-14 h-14 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:outline-none"
+                                        maxlength="1" onkeyup="app.handleOtpInput(this, event)">
+                                    <input type="text"
+                                        class="otp-digit flex items-center justify-center text-center p-0 leading-none font-semibold text-xl border border-slate-200 rounded-xl w-14 h-14 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 focus:outline-none"
+                                        maxlength="1" onkeyup="app.handleOtpInput(this, event)">
+                                </div>
+                            </div>
+                            <div id="fp-step2-error" class="alert alert-danger hidden mb-4"></div>
+                            <button class="btn btn-primary btn-block font-outfit"
+                                onclick="app.submitForgotPasswordStep2()">VERIFY OTP</button>
+                            <div class="text-center mt-4">
+                                <button id="otp-resend-btn" class="btn btn-outline btn-xs"
+                                    style="color: var(--utcl-blue); border: none; background: transparent; cursor: pointer; text-decoration: underline;"
+                                    onclick="app.resendOtp()" disabled>Resend OTP (<span
+                                        id="otp-timer">60</span>s)</button>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: New Password -->
+                        <div id="fp-step-3" class="fp-step hidden">
+                            <div class="form-group">
+                                <label for="fp-new-password">NEW PASSWORD</label>
+                                <input type="password" id="fp-new-password" placeholder="••••••••">
+                            </div>
+                            <div class="form-group">
+                                <label for="fp-confirm-password">CONFIRM NEW PASSWORD</label>
+                                <input type="password" id="fp-confirm-password" placeholder="••••••••">
+                            </div>
+                            <div id="fp-step3-error" class="alert alert-danger hidden mb-4"></div>
+                            <button class="btn btn-success btn-block font-outfit"
+                                onclick="app.submitForgotPasswordStep3()">RESET PASSWORD</button>
+                        </div>
+
+                        <div class="text-center mt-6">
+                            <a href="#" class="back-to-login-link text-sm font-semibold"
+                                style="color: var(--text-muted); text-decoration: none;"
+                                onclick="app.showLoginForm(event)">&larr; Back to Login</a>
+                        </div>
+                    </div>
+
+                    <div class="login-footer">
+                        <span>UTCL Employee Transit Portal &bull; Version 1.0</span>
+                        <div class="dev-watermark" id="dev-watermark">
+                            <span class="dev-watermark-text">Managed and Developed by <strong>Vinit
+                                    Deogade</strong></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            
+            <section id="view-employee" class="view-panel hidden">
+                <div class="portal-container">
+                    <!-- Nav Tabs for Employee -->
+                    <div class="employee-navbar">
+                        <button class="emp-nav-btn active" onclick="app.switchEmployeeTab('booking')">
+                            Book a Trip
+                        </button>
+                        <button class="emp-nav-btn" onclick="app.switchEmployeeTab('mytickets')">
+                            My Tickets
+                        </button>
+                        <button class="emp-nav-btn" onclick="app.switchEmployeeTab('schedules')">
+                            Shift Schedules
+                        </button>
+                        <button class="emp-nav-btn" onclick="app.switchEmployeeTab('myfares')">
+                            My Fares
+                        </button>
+                    </div>
+
+                    <div class="employee-tab-content">
+                        <!-- Employee Tab: Booking -->
+                        <div id="emp-tab-booking" class="emp-tab-panel active">
+                            <div class="booking-grid">
+
+                                <!-- Step Panel -->
+                                <div class="glass-panel p-6" id="booking-steps-container">
+                                    <div class="booking-header">
+                                        <h2 class="font-outfit text-primary">Book a Seat</h2>
+                                        <p class="text-sm text-muted">Complete the fields below to reserve your travel.
+                                        </p>
+                                    </div>
+
+                                    <!-- Booking Step 1: Schedule -->
+                                    <div class="booking-step" id="step-schedule">
+                                        <div class="step-badge">Step 1 of 4</div>
+                                        <h3>Select Departure Shift</h3>
+                                        <div class="form-group mt-4">
+                                            <label for="booking-date">Travel Date</label>
+                                            <input type="date" id="booking-date" onchange="app.onBookingDateChange()"
+                                                min="" required>
+                                        </div>
+                                        <div class="shift-cards-container mt-4" id="booking-shifts-list">
+                                            <!-- Dynamically generated shifts -->
+                                        </div>
+                                    </div>
+
+                                    <!-- Booking Step 2: Choose Seats -->
+                                    <div class="booking-step hidden" id="step-seats">
+                                        <div class="step-badge">Step 2 of 4</div>
+                                        <h3>Select Seats</h3>
+                                        
+                                        <div class="alert alert-info mt-4 text-xs font-semibold" style="border-radius: 8px; border-left: 4px solid var(--primary, #0055a5); background: rgba(0, 85, 165, 0.1); color: var(--primary, #0055a5); padding: 12px 16px;">
+                                            ℹ️ Choose your seats on the interactive bus layout on the right. You can select up to <span id="max-seats-label" class="font-bold">4</span> seat(s).
+                                        </div>
+
+                                        <div class="step-actions mt-6">
+                                            <button class="btn btn-outline btn-sm"
+                                                onclick="app.changeStep('schedule')">Back</button>
+                                            <button class="btn btn-primary btn-sm" id="btn-to-stops"
+                                                onclick="app.changeStep('stops')" disabled>Proceed to Details</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Booking Step 3: Stops & Details -->
+                                    <div class="booking-step hidden" id="step-stops">
+                                        <div class="step-badge">Step 3 of 4</div>
+                                        <h3>Passenger & Route Details</h3>
+
+                                        <div class="form-group mt-4">
+                                            <label for="booking-boarding">Boarding Stop</label>
+                                            <select id="booking-boarding" onchange="app.onStopsChange()"></select>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="booking-drop">Drop-off Stop</label>
+                                            <select id="booking-drop" onchange="app.onStopsChange()"></select>
+                                        </div>
+
+                                        <div id="stops-validation-error" class="alert alert-danger hidden">
+                                            Boarding stop must precede drop stop in the direction of travel!
+                                        </div>
+
+                                        <div class="form-group mt-4">
+                                            <label for="booking-emp-name">Employee Full Name</label>
+                                            <input type="text" id="booking-emp-name" class="locked-field" readonly
+                                                disabled>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="booking-ps-number">PS Number</label>
+                                            <input type="text" id="booking-ps-number" class="locked-field" readonly
+                                                disabled>
+                                        </div>
+
+                                        <!-- Passenger Details / Family Booking -->
+                                        <div class="passenger-details-section mt-6 border-t pt-4">
+                                            <h4 class="font-outfit text-sm text-primary mb-3">Passenger Names</h4>
+
+                                            <div class="form-checkbox-group mb-3">
+                                                <label
+                                                    class="flex items-center gap-2 font-normal text-sm cursor-pointer"
+                                                    style="text-transform: none; display: inline-flex; align-items: center;">
+                                                    <input type="checkbox" id="booking-self-check" checked
+                                                        onchange="app.toggleBookingForSelf()"
+                                                        style="width: auto; margin-right: 8px;">
+                                                    <span>Include myself as a passenger</span>
+                                                </label>
+                                            </div>
+
+                                            <div id="passenger-list-container" class="flex flex-column gap-2 mt-2">
+                                                <!-- Dynamic passenger names are appended here -->
+                                            </div>
+                                        </div>
+
+                                        <div class="step-actions mt-6">
+                                            <button class="btn btn-outline btn-sm"
+                                                onclick="app.changeStep('seats')">Back</button>
+                                            <button class="btn btn-primary btn-sm" id="btn-to-confirm"
+                                                onclick="app.changeStep('confirm')" disabled>Proceed to Review</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Booking Step 4: Confirmation -->
+                                    <div class="booking-step hidden" id="step-confirm">
+                                        <div class="step-badge">Step 4 of 4</div>
+                                        <h3>Review & Confirm Booking</h3>
+
+                                        <div class="summary-card mt-4">
+                                            <div class="summary-row"><span>Passenger:</span> <strong id="sum-name">John
+                                                    Doe</strong></div>
+                                            <div class="summary-row"><span>PS Number:</span> <strong
+                                                    id="sum-ps">PS12345</strong></div>
+                                            <div class="summary-row"><span>Date:</span> <strong
+                                                    id="sum-date">2026-06-02</strong></div>
+                                            <div class="summary-row"><span>Shift:</span> <strong id="sum-shift">S1F (Bus
+                                                    1)</strong></div>
+                                            <div class="summary-row"><span>Route:</span> <strong id="sum-route">Awalpur
+                                                    -> Chandrapur</strong></div>
+                                            <div class="summary-row"><span>Seat(s):</span> <strong
+                                                    id="sum-seat">12</strong></div>
+                                            <div class="summary-row total-row"><span>Total Fare:</span> <strong
+                                                    id="sum-fare" class="text-primary text-xl">₹20</strong></div>
+                                        </div>
+
+                                        <div id="booking-submit-error" class="alert alert-danger hidden mt-4">
+                                            Error confirming booking. Please try again.
+                                        </div>
+
+                                        <div class="step-actions mt-6">
+                                            <button class="btn btn-outline btn-sm"
+                                                onclick="app.changeStep('stops')">Back</button>
+                                            <button class="btn btn-success btn-sm btn-block"
+                                                onclick="app.submitBooking()">Confirm and Book Seat</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Booking Step 4: Success Alert -->
+                                    <div class="booking-step hidden" id="step-success">
+                                        <div class="alert alert-success text-center">
+                                            <h3 class="font-bold text-lg text-success mb-2">Booking Confirmed!</h3>
+                                            <p class="text-sm text-muted mb-4">Your seat has been reserved successfully.
+                                                Virtual ticket generated.</p>
+                                            <button class="btn btn-primary btn-sm mt-4 btn-block font-bold"
+                                                style="text-transform: uppercase;" onclick="app.resetBookingFlow()">BOOK
+                                                ANOTHER SEAT</button>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <!-- Virtual Ticket Panel -->
+                                <div class="glass-panel p-6 flex-center flex-column" id="ticket-result-panel">
+                                    <div id="ticket-empty-state" class="empty-state">
+                                        <svg viewBox="0 0 24 24" width="48" height="48" class="text-muted mb-4"
+                                            stroke="currentColor" stroke-width="1.5" fill="none">
+                                            <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                                            <line x1="8" y1="14" x2="16" y2="14"></line>
+                                        </svg>
+                                        <h3>Your Virtual Ticket</h3>
+                                        <p class="text-sm text-muted">Complete your booking in the left panel to
+                                            generate your ticket.</p>
+                                    </div>
+
+                                    <!-- Interactive Seat Selection Grid (Visible during booking stops/confirm stages) -->
+                                    <div id="seat-selection-container" class="hidden w-full">
+                                        <!-- Seat Selection Header -->
+                                        <div class="seat-selection-header">
+
+                                            <!-- Row 1: Title + Badge -->
+                                            <div class="seat-title-row">
+                                                <h3 class="seat-header-title">Choose Your Seats</h3>
+                                                <span id="ws-live-badge" class="live-sync-badge"
+                                                    title="Real-time seat synchronisation active">
+                                                    <span class="live-sync-dot"></span>Live Sync
+                                                </span>
+                                            </div>
+
+                                            <!-- Row 2: Info icon + Subtitle -->
+                                            <p id="seat-selection-subtitle" class="seat-fare-subtitle">
+                                                <svg class="fare-info-icon" viewBox="0 0 20 20" fill="currentColor"
+                                                    aria-hidden="true">
+                                                    <path fill-rule="evenodd"
+                                                        d="M18 10A8 8 0 1 1 2 10a8 8 0 0 1 16 0Zm-9 3.75h2V9H9v4.75Zm0-6.5h2v-2H9v2Z"
+                                                        clip-rule="evenodd" />
+                                                </svg>
+                                                Flat fare of ₹20 applies to all seats.
+                                            </p>
+
+                                        </div>
+
+                                        <div class="bus-container">
+                                            <div class="bus-steering">
+                                                <svg viewBox="0 0 100 100" width="30" height="30">
+                                                    <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor"
+                                                        stroke-width="8"></circle>
+                                                    <line x1="50" y1="10" x2="50" y2="90" stroke="currentColor"
+                                                        stroke-width="8"></line>
+                                                    <line x1="10" y1="50" x2="90" y2="50" stroke="currentColor"
+                                                        stroke-width="8"></line>
+                                                </svg>
+                                                <span>Driver</span>
+                                            </div>
+                                            <div class="seat-grid" id="seat-map-grid">
+                                                <!-- Dynamic seats -->
+                                            </div>
+                                        </div>
+
+                                        <div class="seat-legend mt-4">
+                                            <div class="legend-item"><span class="legend-box available"></span>
+                                                Available</div>
+                                            <div class="legend-item"><span class="legend-box selected"></span> Selected
+                                            </div>
+                                            <div class="legend-item"><span class="legend-box held"></span> Seat Locked
+                                            </div>
+                                            <div class="legend-item"><span class="legend-box occupied"></span> Occupied
+                                            </div>
+                                            <div class="legend-item"><span class="legend-box conductor-legend">C</span> Conductor
+                                            </div>
+                                        </div>
+                                        <!-- Live update notification bar -->
+                                        <div id="live-update-bar" class="live-update-bar hidden">
+                                            <span id="live-update-msg"></span>
+                                        </div>
+
+                                        <div class="seat-selection-status mt-4 text-center text-sm font-outfit"
+                                            style="border-top: 1px dashed var(--border-color); padding-top: 12px; margin-top: 16px;">
+                                            <span id="seat-selection-counter"
+                                                class="font-bold text-primary text-sm">Seats Selected: 0 / 1</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- The generated ticket -->
+                                    <div id="virtual-ticket-card" class="ticket-card hidden">
+                                        <div class="ticket-header-band">
+                                            <div class="ticket-logo">
+                                                <span>UltraTech</span>
+                                                <span class="text-xs block">E-Ticket</span>
+                                            </div>
+                                            <div class="ticket-number-label">
+                                                Ticket No: <span id="ticket-number">UTCL-89230</span>
+                                            </div>
+                                        </div>
+                                        <div class="ticket-body">
+                                            <div class="ticket-row">
+                                                <div style="flex: 2;">
+                                                    <span class="ticket-label">PASSENGER NAME</span>
+                                                    <span class="ticket-val" id="t-name">Amit Sharma</span>
+                                                </div>
+                                                <div style="flex: 1;">
+                                                    <span class="ticket-label">PS NUMBER</span>
+                                                    <span class="ticket-val" id="t-ps">PS10293</span>
+                                                </div>
+                                            </div>
+                                            <div class="ticket-row">
+                                                <div style="flex: 2;">
+                                                    <span class="ticket-label">SHIFT / BUS</span>
+                                                    <span class="ticket-val" id="t-shift">S1F (Bus 1)</span>
+                                                </div>
+                                                <div style="flex: 1;">
+                                                    <span class="ticket-label">SEAT NUMBER</span>
+                                                    <span class="ticket-val highlight-val" id="t-seat">15</span>
+                                                </div>
+                                            </div>
+                                            <div class="ticket-route-display">
+                                                <div class="stop-point">
+                                                    <span class="ticket-label">BOARDING STOP</span>
+                                                    <span class="ticket-val" id="t-boarding">Awalpur</span>
+                                                </div>
+                                                <div class="route-line-dots">&rarr;</div>
+                                                <div class="stop-point align-right">
+                                                    <span class="ticket-label">DROP STOP</span>
+                                                    <span class="ticket-val" id="t-drop">Chandrapur</span>
+                                                </div>
+                                            </div>
+                                            <div class="ticket-row">
+                                                <div>
+                                                    <span class="ticket-label">DEPARTURE TIME</span>
+                                                    <span class="ticket-val" id="t-time">05:30 AM</span>
+                                                </div>
+                                                <div>
+                                                    <span class="ticket-label">DATE</span>
+                                                    <span class="ticket-val" id="t-date">2026-06-02</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="ticket-footer-fare">
+                                            <span>FARE PAID</span>
+                                            <span class="fare-amount" id="t-fare">₹20</span>
+                                        </div>
+                                        <div class="ticket-qr-block">
+                                            <canvas id="ticket-qr-canvas"></canvas>
+                                            <span class="qr-label">Scan to Verify</span>
+                                        </div>
+                                        <button class="btn btn-outline btn-xs print-ticket-btn"
+                                            onclick="window.print()">
+                                            Print Ticket
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Booking History removed from Employee portal -->
+
+                        <!-- Employee Tab: My Tickets -->
+                        <div id="emp-tab-mytickets" class="emp-tab-panel">
+                            <div class="glass-panel p-6">
+                                <div class="flex-between mb-6 active-tickets-header" style="align-items: flex-start;">
+                                    <div>
+                                        <h2 class="font-outfit text-primary mb-1">My Active Tickets</h2>
+                                        <p class="text-muted text-sm">Your upcoming confirmed bookings. Cancel before
+                                            departure to release your seat instantly.</p>
+                                    </div>
+                                    <button class="btn btn-outline btn-sm" onclick="app.loadMyTickets()"
+                                        title="Refresh">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor"
+                                            stroke-width="2.5" fill="none" stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            style="display: inline-block; vertical-align: middle;">
+                                            <path d="M23 4v6h-6"></path>
+                                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                                        </svg>
+                                        <span>Refresh</span>
+                                    </button>
+                                </div>
+
+                                <!-- Empty state -->
+                                <div id="my-tickets-empty-state" class="empty-state hidden">
+                                    <svg viewBox="0 0 24 24" width="48" height="48" class="text-muted mb-4"
+                                        stroke="currentColor" stroke-width="1.5" fill="none">
+                                        <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                                        <line x1="8" y1="14" x2="16" y2="14"></line>
+                                    </svg>
+                                    <h3>No Active Bookings</h3>
+                                    <p class="text-sm text-muted">You have no upcoming confirmed tickets. Book a trip to
+                                        get started.</p>
+                                    <button class="btn btn-primary btn-sm mt-4"
+                                        onclick="app.switchEmployeeTab('booking')">Book a Trip</button>
+                                </div>
+
+                                <!-- Tickets Table -->
+                                <div id="my-tickets-table-wrapper" class="hidden">
+                                    <div class="table-wrapper">
+                                        <table class="data-table" id="my-tickets-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Shift</th>
+                                                    <th>Seat(s)</th>
+                                                    <th>Route</th>
+                                                    <th>Fare</th>
+                                                    <th>Status</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="my-tickets-table-body">
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Employee Tab: Schedules -->
+                        <div id="emp-tab-schedules" class="emp-tab-panel">
+                            <div class="glass-panel p-6">
+                                <h2 class="font-outfit text-primary mb-4">Shift Schedules & Timings</h2>
+                                <p class="text-muted text-sm mb-6">Flat fare of ₹20 is applicable on all route shifts.
+                                </p>
+                                <div class="schedules-grid" id="schedules-timings-grid">
+                                    <!-- Dynamic schedule cards -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Employee Tab: My Fares -->
+                        <div id="emp-tab-myfares" class="emp-tab-panel">
+                            <div class="glass-panel p-6">
+                                <div class="tab-header-actions mb-4"
+                                    style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                    <h2 class="font-outfit text-primary m-0">My Fare & Salary Deductions</h2>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <label for="myfares-month-select" class="text-muted font-sm m-0">Month:</label>
+                                        <input type="month" id="myfares-month-select" class="form-input"
+                                            style="width: auto; margin: 0; padding: 6px 12px; background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; border-radius: 6px;"
+                                            onchange="app.loadMyFares()">
+                                    </div>
+                                </div>
+
+                                <!-- Summary Grid -->
+                                <div class="kpi-grid mb-6"
+                                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
+                                    <div class="kpi-card glass-panel p-4" style="text-align: center;">
+                                        <span class="kpi-label">Total Rides Taken</span>
+                                        <span class="kpi-val" id="myfares-kpi-rides">0</span>
+                                    </div>
+                                    <div class="kpi-card glass-panel p-4" style="text-align: center;">
+                                        <span class="kpi-label">Deduction Amount</span>
+                                        <span class="kpi-val text-warning" id="myfares-kpi-amount">₹0</span>
+                                    </div>
+                                    <div class="kpi-card glass-panel p-4" style="text-align: center;"
+                                        id="myfares-kpi-status-card">
+                                        <span class="kpi-label">Deduction Status</span>
+                                        <span class="kpi-val" id="myfares-kpi-status"
+                                            style="font-size: 1.25rem;">–</span>
+                                    </div>
+                                </div>
+
+                                <div class="table-responsive">
+                                    <h3 class="font-outfit text-primary mb-4"
+                                        style="font-size: 1.1rem; margin-top: 20px;">Rides Log</h3>
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Travel Date</th>
+                                                <th>Shift ID</th>
+                                                <th>Seat Number</th>
+                                                <th>Boarding Stop</th>
+                                                <th>Drop Stop</th>
+                                                <th>Fare</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="myfares-table-body">
+                                            <tr>
+                                                <td colspan="6" class="text-center text-muted">No rides recorded for
+                                                    this month.</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
+            
+            <section id="view-driver" class="view-panel hidden">
+                <div class="portal-container">
+                    <div class="driver-layout">
+                        <!-- Left Panel: Profile, Bus Details, and Attendance -->
+                        <div class="driver-sidebar-col flex flex-col gap-6">
+                            <div class="glass-panel p-6" id="driver-bus-card">
+                                <h2 class="font-outfit text-primary mb-2">Driver Dashboard</h2>
+                                <div class="driver-info-block mt-4">
+                                    <div class="info-label">ASSIGNED BUS</div>
+                                    <div class="info-val" id="driver-assigned-bus">Bus 1</div>
+                                </div>
+                                <div class="driver-info-block mt-4">
+                                    <div class="info-label">DRIVER NAME</div>
+                                    <div class="info-val" id="driver-name-display">Rajesh Kumar</div>
+                                </div>
+                                <div class="driver-info-block mt-4">
+                                    <div class="info-label">EMPLOYEE NUMBER</div>
+                                    <div class="info-val" id="driver-ps-display">PS20001</div>
+                                </div>
+                            </div>
+
+                            <!-- Trip Attendance Card -->
+                            <div class="glass-panel p-6" id="driver-attendance-card" style="display: none;">
+                                <h3 class="font-outfit text-primary mb-3">Trip Attendance Logging</h3>
+
+                                <!-- Trip/Shift Selection Dropdown -->
+                                <div class="form-group mb-4">
+                                    <label for="driver-select-shift" class="info-label">SELECT ASSIGNED TRIP</label>
+                                    <select id="driver-select-shift"
+                                        class="form-select w-full py-2 px-3 border border-gray-300 rounded-md text-sm"
+                                        onchange="app.onDriverShiftChange()">
+                                        <!-- Dynamic options -->
+                                    </select>
+                                </div>
+
+                                <!-- State 1: Mark Departure Attendance -->
+                                <div id="driver-att-step-departure" class="attendance-step hidden">
+                                    <h4 class="text-xs font-semibold mb-2" style="color: var(--utcl-blue);">Mark
+                                        Departure Attendance</h4>
+                                    <div class="photo-upload-container p-4 border-2 border-dashed rounded text-center mb-3"
+                                        style="background: #F8FAFC; border-color: #CBD5E1; cursor: pointer;"
+                                        onclick="document.getElementById('driver-upload-dep-file').click()">
+                                        <input type="file" id="driver-upload-dep-file" class="hidden" accept="image/*"
+                                            onchange="app.previewAttendancePhoto('dep', event)">
+                                        <div style="font-size: 1.2rem; margin-bottom: 4px;">📷</div>
+                                        <span class="text-xs font-medium text-gray-600">Take/Upload Departure Photo (GPS
+                                            Camera)</span>
+                                        <div id="driver-dep-preview-container"
+                                            class="hidden mt-3 flex justify-center items-center gap-2">
+                                            <img id="driver-dep-preview" src=""
+                                                style="width: 80px; height: 80px; object-fit: cover; border-radius: 6px; border: 1px solid #CBD5E1;">
+                                        </div>
+                                    </div>
+                                    <button id="driver-submit-dep-btn"
+                                        class="btn btn-primary w-full py-2 text-xs font-bold mt-4"
+                                        onclick="app.submitDepartureAttendance()">
+                                        Submit Departure
+                                    </button>
+                                </div>
+
+                                <!-- State 2: During Trip / In Transit -->
+                                <div id="driver-att-step-intransit" class="attendance-step hidden">
+                                    <div class="p-4 border rounded text-center mb-3"
+                                        style="background: #FFFBEB; border-color: #FDE68A;">
+                                        <div style="font-size: 1.5rem; margin-bottom: 6px;">🚌</div>
+                                        <div class="text-xs font-semibold text-amber-800">Trip In Progress (In Transit)
+                                        </div>
+                                        <div class="text-[10px] text-amber-600 mt-1" id="driver-dep-marked-time">
+                                            Departure logged at: --:--</div>
+                                    </div>
+                                    <button class="btn btn-outline w-full py-2 text-xs font-bold"
+                                        onclick="app.showArrivalAttendanceStep()">
+                                        Arrived at Destination
+                                    </button>
+                                </div>
+
+                                <!-- State 3: Mark Arrival Attendance -->
+                                <div id="driver-att-step-arrival" class="attendance-step hidden">
+                                    <h4 class="text-xs font-semibold mb-2" style="color: var(--utcl-blue);">Mark Arrival
+                                        Attendance</h4>
+                                    <div class="photo-upload-container p-4 border-2 border-dashed rounded text-center mb-3"
+                                        style="background: #F8FAFC; border-color: #CBD5E1; cursor: pointer;"
+                                        onclick="document.getElementById('driver-upload-arr-file').click()">
+                                        <input type="file" id="driver-upload-arr-file" class="hidden" accept="image/*"
+                                            onchange="app.previewAttendancePhoto('arr', event)">
+                                        <div style="font-size: 1.2rem; margin-bottom: 4px;">📷</div>
+                                        <span class="text-xs font-medium text-gray-600">Take/Upload Arrival Photo (GPS
+                                            Camera)</span>
+                                        <div id="driver-arr-preview-container"
+                                            class="hidden mt-3 flex justify-center items-center gap-2">
+                                            <img id="driver-arr-preview" src=""
+                                                style="width: 80px; height: 80px; object-fit: cover; border-radius: 6px; border: 1px solid #CBD5E1;">
+                                        </div>
+                                    </div>
+                                    <button id="driver-submit-arr-btn"
+                                        class="btn btn-primary w-full py-2 text-xs font-bold mt-4"
+                                        onclick="app.submitArrivalAttendance()">
+                                        Submit Arrival & End Trip
+                                    </button>
+                                </div>
+
+                                <!-- State 4: Completed / Approved / Rejected Status Display -->
+                                <div id="driver-att-step-status" class="attendance-step hidden">
+                                    <div id="driver-attendance-status-box" class="p-4 border rounded text-center mb-3">
+                                        <div id="driver-status-icon" style="font-size: 1.5rem; margin-bottom: 6px;">⏳
+                                        </div>
+                                        <div id="driver-status-title" class="text-xs font-semibold">Submitted</div>
+                                        <div id="driver-status-desc" class="text-[10px] mt-1">Pending Admin Review</div>
+                                    </div>
+                                    <div class="flex flex-col gap-1 text-[10px] text-gray-500 border-t pt-2">
+                                        <div class="flex justify-between">
+                                            <span>Departure:</span>
+                                            <span id="driver-status-dep-time">--</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span>Arrival:</span>
+                                            <span id="driver-status-arr-time">--</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Panel: Scheduled Shifts & Maintenance Alerts -->
+                        <div class="driver-schedules-section">
+                            <div class="glass-panel p-6 mb-6">
+                                <h3 class="font-outfit text-primary mb-4">My Assigned Shifts</h3>
+                                <div class="driver-shifts-list" id="driver-shifts-list">
+                                    <!-- Dynamic shifts with stop listings -->
+                                </div>
+                            </div>
+
+                            <div class="glass-panel p-6">
+                                <h3 class="font-outfit text-primary mb-4">Upcoming Maintenance Notices</h3>
+                                <div class="driver-maintenance-list" id="driver-maintenance-list">
+                                    <!-- Maintenance notices -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            
+            <section id="view-admin" class="view-panel hidden">
+                <div class="admin-layout">
+                    <!-- Admin Sidebar Navigation -->
+                    <aside class="admin-sidebar glass-panel">
+                        <nav class="admin-nav">
+                            <button class="admin-nav-btn active" onclick="app.switchAdminTab('dashboard')">Dashboard
+                                Overview</button>
+                            <button class="admin-nav-btn" onclick="app.switchAdminTab('users')">User Management</button>
+                            <button class="admin-nav-btn" onclick="app.switchAdminTab('buses')">Bus & Driver
+                                Assign</button>
+                            <button class="admin-nav-btn" onclick="app.switchAdminTab('shifts')">Modify Shifts</button>
+                            <button class="admin-nav-btn" onclick="app.switchAdminTab('maintenance')">Maintenance
+                                Logs</button>
+                            <button class="admin-nav-btn" onclick="app.switchAdminTab('revenue')">Revenue
+                                Analytics</button>
+                            <button class="admin-nav-btn" onclick="app.switchAdminTab('occupancy')">Occupancy
+                                Analysis</button>
+                            <button class="admin-nav-btn" onclick="app.switchAdminTab('notifications')">Send
+                                Notifications</button>
+                            <button class="admin-nav-btn" onclick="app.switchAdminTab('history')">Booking
+                                History</button>
+                            <button class="admin-nav-btn" onclick="app.switchAdminTab('attendance')">Driver
+                                Attendance</button>
+                            <button class="admin-nav-btn" onclick="app.switchAdminTab('payroll')">Payroll &
+                                Deductions</button>
+                        </nav>
+                    </aside>
+
+                    <!-- Admin Content Area -->
+                    <div class="admin-content-area">
+
+                        <!-- TAB: DASHBOARD OVERVIEW -->
+                        <div id="admin-tab-dashboard" class="admin-tab-panel active">
+                            <h2 class="font-outfit text-primary mb-6">Operations Dashboard</h2>
+                            <div class="kpi-grid">
+                                <div class="kpi-card glass-panel">
+                                    <span class="kpi-label">Active Fleet</span>
+                                    <span class="kpi-val" id="admin-kpi-fleet">2 / 2</span>
+                                </div>
+                                <div class="kpi-card glass-panel">
+                                    <span class="kpi-label">Today's Bookings</span>
+                                    <span class="kpi-val" id="admin-kpi-bookings">24</span>
+                                </div>
+                                <div class="kpi-card glass-panel">
+                                    <span class="kpi-label">Today's Revenue</span>
+                                    <span class="kpi-val" id="admin-kpi-revenue">₹480</span>
+                                </div>
+                                <div class="kpi-card glass-panel">
+                                    <span class="kpi-label">Average Occupancy</span>
+                                    <span class="kpi-val" id="admin-kpi-occupancy">60%</span>
+                                </div>
+                                <div class="kpi-card glass-panel">
+                                    <span class="kpi-label">Total Bookings (All Time)</span>
+                                    <span class="kpi-val" id="admin-kpi-total-bookings">–</span>
+                                </div>
+                                <div class="kpi-card glass-panel">
+                                    <span class="kpi-label">Total Revenue (All Time)</span>
+                                    <span class="kpi-val text-primary" id="admin-kpi-total-revenue">–</span>
+                                </div>
+                            </div>
+
+                            <!-- Analytics Charts Grid -->
+                            <div class="dashboard-analytics-grid mt-6">
+                                <div class="glass-panel p-6 chart-panel">
+                                    <h3 class="font-outfit mb-4">Daily Bookings – Last 14 Days</h3>
+                                    <div class="chart-container">
+                                        <canvas id="dash-daily-chart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="glass-panel p-6 chart-panel">
+                                    <h3 class="font-outfit mb-4">Bookings by Shift</h3>
+                                    <div class="chart-container">
+                                        <canvas id="dash-shift-chart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="glass-panel p-6 chart-panel">
+                                    <h3 class="font-outfit mb-4">Top Boarding Stops</h3>
+                                    <div class="chart-container">
+                                        <canvas id="dash-stops-chart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="glass-panel p-6 chart-panel">
+                                    <h3 class="font-outfit mb-4">Bookings by Day of Week</h3>
+                                    <div class="chart-container">
+                                        <canvas id="dash-weekday-chart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="dashboard-charts-summary mt-6">
+                                <div class="glass-panel p-6">
+                                    <h3 class="font-outfit mb-4">System Alerts &amp; Overdue Events</h3>
+                                    <div id="admin-dashboard-alerts" class="dashboard-alerts-list">
+                                        <!-- Live warnings e.g. overdue maintenance, overlapping shifts -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB: USER MANAGEMENT -->
+                        <div id="admin-tab-users" class="admin-tab-panel">
+                            <div class="tab-header-actions mb-4">
+                                <h2 class="font-outfit text-primary">User & Driver Management</h2>
+                                <button class="btn btn-primary btn-sm"
+                                    onclick="app.showCreateUserModal()">Create New User</button>
+                            </div>
+                            <div class="glass-panel p-6">
+                                <div class="mb-4" style="max-width: 400px; position: relative;">
+                                    <input type="text" id="admin-users-search" placeholder="PSXXXXX" autocomplete="off"
+                                        oninput="app.loadAdminUsers()"
+                                        style="width: 100%; padding-left: 36px; height: 38px; font-size: 0.875rem; border-radius: 8px;">
+                                    <span
+                                        style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; display: flex; align-items: center;">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor"
+                                            stroke-width="2.5" fill="none" stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <circle cx="11" cy="11" r="8"></circle>
+                                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                        </svg>
+                                    </span>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>PS Number</th>
+                                                <th class="email-column">Email</th>
+                                                <th>Role</th>
+                                                <th>Plant</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="admin-users-table-body">
+                                            <!-- Dynamic Users list -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB: BUS & DRIVER ASSIGN -->
+                        <div id="admin-tab-buses" class="admin-tab-panel">
+                            <div class="tab-header-actions mb-4">
+                                <h2 class="font-outfit text-primary">Fleet Management</h2>
+                            </div>
+
+                            <div class="grid-2col">
+                                <div class="glass-panel p-6">
+                                    <h3>Physical Buses</h3>
+                                    <div class="table-responsive mt-4">
+                                        <table class="data-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Bus ID</th>
+                                                    <th>Status</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="admin-buses-table-body">
+                                                <!-- Dynamic Bus List -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <div class="glass-panel p-6">
+                                    <h3>Shift Driver Assignment</h3>
+                                    <form id="driver-assign-form" class="mt-4"
+                                        onsubmit="app.handleDriverAssignment(event)">
+                                        <div class="form-group">
+                                            <label for="assign-driver-select">Select Driver</label>
+                                            <select id="assign-driver-select" required></select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="assign-shift-select">Select Daily Shift</label>
+                                            <select id="assign-shift-select" required></select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="assign-date">Assignment Date</label>
+                                            <input type="date" id="assign-date" required>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary btn-block mt-4">Save
+                                            Assignment</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB: MODIFY SHIFTS -->
+                        <div id="admin-tab-shifts" class="admin-tab-panel">
+                            <h2 class="font-outfit text-primary mb-4">Modify Shift Schedules</h2>
+                            <p class="text-sm text-muted mb-6">Editing shifts will update the stop arrival schedule and
+                                notify booked employees.</p>
+
+                            <div class="glass-panel p-6">
+                                <div class="form-group max-w-md">
+                                    <label for="edit-shift-select">Select Shift to Modify</label>
+                                    <select id="edit-shift-select" onchange="app.loadShiftEditForm()"></select>
+                                </div>
+
+                                <form id="shift-edit-form" class="hidden mt-6"
+                                    onsubmit="app.saveShiftModification(event)">
+                                    <div class="form-group">
+                                        <label>Stop Schedule Ordering (Times in HH:MM Format)</label>
+                                        <div id="shift-stops-edit-list" class="stops-edit-grid mt-2">
+                                            <!-- Inputs for times of stops -->
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary mt-4">Save Schedule & Notify
+                                        Passengers</button>
+                                </form>
+                            </div>
+
+                            <div class="glass-panel p-6 mt-6">
+                                <h3 class="font-outfit text-primary mb-2">Cancel Shift for a Day</h3>
+                                <p class="text-xs text-muted mb-4">Select a shift and date to cancel. Affected
+                                    passengers will be notified instantly and bookings removed from payroll.</p>
+
+                                <form id="admin-cancel-shift-form" onsubmit="app.handleCancelShiftForDay(event)">
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4"
+                                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                                        <div class="form-group">
+                                            <label for="cancel-shift-select">Select Shift</label>
+                                            <select id="cancel-shift-select" required class="form-select w-full"
+                                                onchange="app.updateCancelShiftBookingCount()"></select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="cancel-shift-date">Select Date</label>
+                                            <input type="date" id="cancel-shift-date" required class="form-input w-full"
+                                                onchange="app.updateCancelShiftBookingCount()">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="cancel-shift-reason">Reason for Cancellation</label>
+                                            <input type="text" id="cancel-shift-reason" class="form-input w-full"
+                                                placeholder="e.g. Breakdown, holiday"
+                                                value="Shift cancelled for the day">
+                                        </div>
+                                    </div>
+                                    <div id="cancel-shift-count-container"
+                                        class="bg-slate-50 p-4 rounded-xl border border-slate-100 my-4 flex flex-col gap-2 hidden">
+                                        <div class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                            Impact Assessment</div>
+                                        <div class="flex items-center gap-2">
+                                            <span id="cancel-shift-affected-badge"
+                                                class="text-xl font-bold text-blue-600">0</span>
+                                            <span id="cancel-shift-affected-text"
+                                                class="text-sm text-slate-700 font-medium">passengers with affected
+                                                bookings will be unassigned and notified.</span>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-danger mt-4">Cancel Shift for Selected
+                                        Date</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- TAB: MAINTENANCE LOGS -->
+                        <div id="admin-tab-maintenance" class="admin-tab-panel">
+                            <div class="tab-header-actions mb-6">
+                                <h2 class="font-outfit text-primary">Services Schedule & Timings</h2>
+                                <button class="btn btn-primary btn-sm"
+                                    onclick="app.openModal('create-maintenance-modal')">Schedule Servicing</button>
+                            </div>
+                            <div class="glass-panel p-6">
+                                <div class="table-responsive">
+                                    <table class="data-table-premium" style="table-layout: fixed; width: 100%;">
+                                        <colgroup>
+                                            <col style="width: 10%;">
+                                            <col style="width: 13%;">
+                                            <col style="width: 35%;">
+                                            <col style="width: 13%;">
+                                            <col style="width: 14%;">
+                                            <col style="width: 15%;">
+                                        </colgroup>
+                                        <thead>
+                                            <tr>
+                                                <th>BUS NAME</th>
+                                                <th>SHIFT ID</th>
+                                                <th>DESCRIPTION</th>
+                                                <th>STATUS</th>
+                                                <th>COMPLETION DATE</th>
+                                                <th>ACTION</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="admin-maintenance-table-body">
+                                            <!-- Dynamic maintenance -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB: REVENUE ANALYTICS -->
+                        <div id="admin-tab-revenue" class="admin-tab-panel">
+                            <h2 class="font-outfit text-primary mb-4">Revenue Analytics</h2>
+
+                            <div class="analytics-filter-bar glass-panel mb-6">
+                                <form id="revenue-filter-form" onsubmit="app.filterRevenue(event)" class="form-inline">
+                                    <div class="form-group mr-4">
+                                        <label for="rev-date-from">From</label>
+                                        <input type="date" id="rev-date-from" required>
+                                    </div>
+                                    <div class="form-group mr-4">
+                                        <label for="rev-date-to">To</label>
+                                        <input type="date" id="rev-date-to" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary btn-sm align-self-end">Filter
+                                        Range</button>
+                                </form>
+                                <div id="revenue-date-error" class="alert alert-danger hidden mt-2">
+                                    Start date cannot be after end date!
+                                </div>
+                            </div>
+
+                            <div class="kpi-grid mb-6">
+                                <div class="kpi-card glass-panel">
+                                    <span class="kpi-label">Filtered Bookings</span>
+                                    <span class="kpi-val" id="rev-total-bookings">0</span>
+                                </div>
+                                <div class="kpi-card glass-panel text-primary-border">
+                                    <span class="kpi-label">Filtered Revenue</span>
+                                    <span class="kpi-val text-primary" id="rev-total-revenue">₹0</span>
+                                </div>
+                            </div>
+
+                            <div class="grid-2col">
+                                <div class="glass-panel p-6">
+                                    <h3>Revenue by Shift</h3>
+                                    <div class="chart-container mt-4">
+                                        <canvas id="revenue-shift-chart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="glass-panel p-6">
+                                    <h3>Tabular Breakdown</h3>
+                                    <div class="table-responsive mt-4">
+                                        <table class="data-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Shift ID</th>
+                                                    <th>Bus</th>
+                                                    <th>Bookings</th>
+                                                    <th>Revenue</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="revenue-table-body">
+                                                <!-- Dynamic revenue list -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB: OCCUPANCY ANALYSIS -->
+                        <div id="admin-tab-occupancy" class="admin-tab-panel">
+                            <h2 class="font-outfit text-primary mb-4">Occupancy Analysis</h2>
+
+                            <div class="grid-2col mb-6">
+                                <div class="glass-panel p-6">
+                                    <h3>Weekday vs Weekend Averages</h3>
+                                    <div class="chart-container mt-4">
+                                        <canvas id="occupancy-type-chart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-4">
+                                    <div class="analytics-filter-bar glass-panel p-4">
+                                        <form id="occupancy-filter-form" onsubmit="app.filterOccupancy(event)"
+                                            class="form-inline">
+                                            <div class="form-group mr-4">
+                                                <label for="occ-date-from">From</label>
+                                                <input type="date" id="occ-date-from" required>
+                                            </div>
+                                            <div class="form-group mr-4">
+                                                <label for="occ-date-to">To</label>
+                                                <input type="date" id="occ-date-to" required>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary btn-sm align-self-end">Filter
+                                                Range</button>
+                                        </form>
+                                    </div>
+                                    <div class="glass-panel p-6">
+                                        <h3>Shift Averages & Utilization</h3>
+                                        <div class="table-responsive mt-4">
+                                            <table class="data-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Shift ID</th>
+                                                        <th>Route</th>
+                                                        <th>Avg Bookings</th>
+                                                        <th>Avg Occupancy</th>
+                                                        <th>Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="occupancy-table-body">
+                                                    <!-- Dynamic occupancy list -->
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="glass-panel p-6">
+                                <div class="tab-header-actions mb-4">
+                                    <h3>30-Days Historical Shift Occupancy Trend</h3>
+                                    <div class="form-inline">
+                                        <select id="occupancy-history-shift-select"
+                                            onchange="app.loadHistoricalOccupancyChart()"
+                                            class="form-select mr-2"></select>
+                                    </div>
+                                </div>
+                                <div class="chart-container" style="height: 300px;">
+                                    <canvas id="occupancy-history-chart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB: SEND NOTIFICATIONS -->
+                        <div id="admin-tab-notifications" class="admin-tab-panel">
+                            <div class="tab-header-actions mb-4">
+                                <h2 class="font-outfit text-primary">Send Notifications</h2>
+                            </div>
+
+                            <div class="grid grid-2 mt-4 gap-6"
+                                style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                                <div class="glass-panel p-6">
+                                    <h3 class="font-outfit text-primary mb-4">New Notification Broadcast</h3>
+                                    <form id="admin-send-notification-form"
+                                        onsubmit="app.handleSendBroadcastNotification(event)">
+                                        <div class="form-group mb-4">
+                                            <label for="notification-recipient-type">Recipient Audience</label>
+                                            <select id="notification-recipient-type" class="form-select w-full"
+                                                onchange="app.onRecipientTypeChange()"
+                                                style="background: #F8FAFC; color: var(--text-primary); border: 1px solid #CBD5E1; padding: 10px; border-radius: var(--radius-sm); width: 100%;">
+                                                <option value="ALL_EMPLOYEES">All Employees</option>
+                                                <option value="ALL_DRIVERS">All Drivers</option>
+                                                <option value="SPECIFIC_USER">Specific User</option>
+                                            </select>
+                                        </div>
+
+                                        <div id="specific-user-recipient-group" class="form-group mb-4 hidden"
+                                            style="position: relative;">
+                                            <label for="notification-recipient-search">Recipient Selection</label>
+                                            <input type="text" id="notification-recipient-search" placeholder="PSXXXXX"
+                                                autocomplete="off" oninput="app.handleRecipientSearchInput(this)"
+                                                onkeydown="app.handleRecipientSearchKeydown(this, event)"
+                                                style="background: #F8FAFC; color: var(--text-primary); border: 1px solid #CBD5E1; padding: 10px; border-radius: var(--radius-sm); width: 100%;"
+                                                maxlength="10">
+                                            <input type="hidden" id="notification-recipient-ps">
+                                            <div id="recipient-autocomplete-dropdown"
+                                                class="autocomplete-dropdown hidden"></div>
+                                        </div>
+
+                                        <div class="form-group mb-4">
+                                            <label for="notification-message-content">Message</label>
+                                            <textarea id="notification-message-content" class="form-control w-full"
+                                                rows="4" placeholder="Type notification message here..." required
+                                                style="background: #F8FAFC; color: var(--text-primary); border: 1px solid #CBD5E1; padding: 10px; border-radius: var(--radius-sm); width: 100%; font-family: inherit; resize: vertical;"></textarea>
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary w-full"
+                                            style="margin-top: 10px;">Send Notification</button>
+                                    </form>
+                                </div>
+
+                                <div class="glass-panel p-6">
+                                    <h3 class="font-outfit text-primary mb-4">Sent Notifications History</h3>
+                                    <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+                                        <table class="data-table notification-table">
+                                            <thead>
+                                                <tr>
+                                                    <th class="col-recipient">Recipient</th>
+                                                    <th class="col-message">Message</th>
+                                                    <th class="col-sent-at">Sent At</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="admin-sent-notifications-tbody">
+                                                <!-- Dynamic sent notification list -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB: BOOKING HISTORY -->
+                        <div id="admin-tab-history" class="admin-tab-panel">
+                            <div class="glass-panel p-6">
+                                <div class="tab-header-actions mb-4"
+                                    style="display: flex; justify-content: space-between; align-items: center;">
+                                    <h2 class="font-outfit text-primary m-0">Departure Manifest</h2>
+                                    <button class="btn btn-success btn-sm hidden" onclick="app.exportHistoryToExcel()"
+                                        id="export-excel-btn">
+                                        &darr; EXPORT TO EXCEL
+                                    </button>
+                                </div>
+
+                                <!-- PS Number Search Bar (same pattern as Driver Attendance) -->
+                                <div class="history-filter-box form-inline mb-6">
+                                    <div class="form-group mr-4" style="flex: 1; max-width: 450px; position: relative;">
+                                        <label for="history-ps-number">ENTER EMPLOYEE PS NUMBER TO RETRIEVE BOOKING
+                                            HISTORY:</label>
+                                        <div class="input-verify-group">
+                                            <div style="position: relative; flex: 1;">
+                                                <input type="text" id="history-ps-number" placeholder="PSXXXXX"
+                                                    autocomplete="off" oninput="app.handleHistorySearchInput(this)"
+                                                    onkeydown="app.handleHistorySearchKeydown(this, event)"
+                                                    style="width: 100%; padding-right: 32px;" maxlength="10">
+                                                <span id="history-clear-btn" class="clear-search-icon hidden"
+                                                    onclick="app.clearBookingHistorySearch()" role="button"
+                                                    aria-label="Clear search" tabindex="0">&times;</span>
+                                            </div>
+                                            <button class="btn btn-primary btn-sm"
+                                                onclick="app.loadBookingHistory()">Search</button>
+                                        </div>
+                                        <div id="history-autocomplete-dropdown" class="autocomplete-dropdown hidden">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Default: Upcoming Departures Manifest Table -->
+                                <div id="history-manifest-section">
+                                    <h3 class="font-outfit mb-3"
+                                        style="font-size: 1rem; font-weight: 600; color: var(--utcl-blue); margin-bottom: 12px;">
+                                        Today's Upcoming Departures</h3>
+                                    <div class="table-responsive">
+                                        <table class="data-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Shift</th>
+                                                    <th>Departure Time</th>
+                                                    <th>Status</th>
+                                                    <th>Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="admin-upcoming-manifests-body">
+                                                <tr>
+                                                    <td colspan="4" class="text-center text-muted py-3">Loading
+                                                        departures...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- Employee Booking History (shown after PS search) -->
+                                <div id="history-employee-section" class="hidden">
+                                    <div class="tab-header-actions mb-3"
+                                        style="display: flex; justify-content: space-between; align-items: center;">
+                                        <h3 class="font-outfit m-0" id="history-employee-title"
+                                            style="font-size: 1rem; font-weight: 600; color: var(--utcl-blue);">Employee
+                                            Booking History</h3>
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table class="data-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Shift</th>
+                                                    <th>Seat</th>
+                                                    <th>Boarding Stop</th>
+                                                    <th>Drop Stop</th>
+                                                    <th>Fare</th>
+                                                    <th>Status</th>
+                                                    <th>Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="history-table-body">
+                                                <tr>
+                                                    <td colspan="8" class="text-center text-muted">Please enter
+                                                        employee's PS Number above to view history.</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB: DRIVER ATTENDANCE REVIEW -->
+                        <div id="admin-tab-attendance" class="admin-tab-panel">
+                            <div class="glass-panel p-6">
+                                <div class="tab-header-actions mb-4"
+                                    style="display: flex; justify-content: space-between; align-items: center;">
+                                    <h2 class="font-outfit text-primary m-0">Driver Attendance Management</h2>
+                                    <button class="btn btn-success btn-sm hidden"
+                                        onclick="app.exportDriverHistoryToExcel()" id="driver-export-excel-btn">
+                                        &darr; EXPORT TO EXCEL
+                                    </button>
+                                </div>
+
+                                <div class="history-filter-box form-inline mb-6">
+                                    <div class="form-group mr-4" style="flex: 1; max-width: 450px; position: relative;">
+                                        <label for="driver-history-ps-number">ENTER DRIVER PS NUMBER TO RETRIEVE
+                                            HISTORY:</label>
+                                        <div class="input-verify-group">
+                                            <div style="position: relative; flex: 1;">
+                                                <input type="text" id="driver-history-ps-number" placeholder="PSXXXXX"
+                                                    autocomplete="off"
+                                                    oninput="app.handleDriverHistorySearchInput(this)"
+                                                    onkeydown="app.handleDriverHistorySearchKeydown(this, event)"
+                                                    style="width: 100%; padding-right: 32px;" maxlength="10">
+                                                <span id="driver-history-clear-btn" class="clear-search-icon hidden"
+                                                    onclick="app.clearDriverAttendanceSearch()" role="button"
+                                                    aria-label="Clear search" tabindex="0">&times;</span>
+                                            </div>
+                                            <button class="btn btn-primary btn-sm"
+                                                onclick="app.loadDriverAttendanceHistory(1)">Search</button>
+                                        </div>
+                                        <div id="driver-history-autocomplete-dropdown"
+                                            class="autocomplete-dropdown hidden">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="table-responsive">
+                                    <table class="data-table">
+                                        <thead id="driver-management-table-head">
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Driver Name</th>
+                                                <th>Bus ID</th>
+                                                <th>Shift ID</th>
+                                                <th>Departure Info</th>
+                                                <th>Arrival Info</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="driver-management-table-body">
+                                            <tr>
+                                                <td colspan="7" class="text-center text-muted">No pending driver
+                                                    attendances for review.</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- Pagination controls -->
+                                <div id="driver-history-pagination" class="pagination-container mt-4 hidden">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB: PAYROLL & DEDUCTIONS -->
+                        <div id="admin-tab-payroll" class="admin-tab-panel">
+                            <div class="glass-panel p-6">
+                                <div class="tab-header-actions mb-4"
+                                    style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                    <h2 class="font-outfit text-primary m-0">Payroll & Deductions</h2>
+                                    <div class="payroll-global-actions"
+                                        style="display: flex; gap: 10px; align-items: center;">
+                                        <label for="payroll-month-select" class="text-muted font-sm m-0">Select
+                                            Month:</label>
+                                        <input type="month" id="payroll-month-select" class="form-input"
+                                            style="width: auto; margin: 0; padding: 6px 12px; background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; border-radius: 6px;"
+                                            onchange="app.generatePayrollPreview()">
+
+                                        <div id="payroll-plant-filter-group" style="display: none !important;">
+                                            <label for="payroll-plant-select" class="text-muted font-sm m-0 ml-3">Select
+                                                Plant:</label>
+                                            <select id="payroll-plant-select" class="form-input"
+                                                style="width: auto; margin: 0; padding: 6px 12px; background: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; border-radius: 6px;"
+                                                onchange="app.generatePayrollPreview()">
+                                                <option value="All">All Plants</option>
+                                                <option value="Awalpur">Awalpur Plant</option>
+                                                <option value="Manikgarh">Manikgarh Plant</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Dynamic status banners -->
+                                <div id="payroll-status-banner" class="mb-3"></div>
+
+                                <div class="payroll-actions-bar mb-6"
+                                    style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+                                    <button class="btn btn-primary btn-sm" id="payroll-btn-generate"
+                                        onclick="app.generatePayrollReport()">
+                                        Generate & Lock Draft
+                                    </button>
+                                    <button class="btn btn-success btn-sm hidden" id="payroll-btn-export"
+                                        onclick="app.exportPayrollExcel()">
+                                        &darr; EXPORT EXCEL REPORT
+                                    </button>
+                                    <button class="btn btn-warning btn-sm hidden" id="payroll-btn-process"
+                                        onclick="app.markPayrollProcessed()">
+                                        Mark as Processed (Lock Period)
+                                    </button>
+                                    <button class="btn btn-danger btn-sm hidden" id="payroll-btn-unlock"
+                                        onclick="app.unlockPayrollPeriod()">
+                                        Unlock Period (Undo Lock)
+                                    </button>
+                                </div>
+
+                                <div class="grid grid-2 gap-6"
+                                    style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start;">
+                                    <!-- Employee Breakdown -->
+                                    <div class="glass-panel p-4"
+                                        style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+                                        <h3 class="font-outfit text-primary mb-4"
+                                            style="font-size: 1.1rem; margin: 0 0 16px 0;">Employee Breakdown</h3>
+                                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                            <table class="data-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Employee Name</th>
+                                                        <th>PS Number</th>
+                                                        <th>Role</th>
+                                                        <th>Total Rides</th>
+                                                        <th>Amount Due</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="payroll-summary-table-body">
+                                                    <tr>
+                                                        <td colspan="5" class="text-center text-muted">Select a month to
+                                                            load details.</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <!-- Payroll History -->
+                                    <div class="glass-panel p-4"
+                                        style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+                                        <h3 class="font-outfit text-primary mb-4"
+                                            style="font-size: 1.1rem; margin: 0 0 16px 0;">Cycle History</h3>
+                                        <div class="table-responsive">
+                                            <table class="data-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Month</th>
+                                                        <th>Amount</th>
+                                                        <th>Status</th>
+                                                        <th>Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="payroll-history-table-body">
+                                                    <tr>
+                                                        <td colspan="4" class="text-center text-muted">No history
+                                                            loaded.</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- MODAL: Create User -->
+        <div id="create-user-modal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3>Create New Account</h3>
+                    <button class="modal-close" onclick="app.closeModal('create-user-modal')"
+                        aria-label="Close modal">&times;</button>
+                </div>
+                <form id="create-user-form" onsubmit="app.handleCreateUser(event)">
+                    <div class="form-group">
+                        <label for="new-user-name">Full Name</label>
+                        <input type="text" id="new-user-name" required placeholder="Enter name...">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-user-ps">PS Number</label>
+                        <input type="text" id="new-user-ps" required maxlength="10">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-user-role">Role Designation</label>
+                        <select id="new-user-role" required onchange="app.toggleUserFormFields()">
+                            <option value="EMPLOYEE">Employee</option>
+                            <option value="DRIVER">Driver</option>
+                            <option value="ADMIN">Admin</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-user-plant">Associated Plant</label>
+                        <select id="new-user-plant" required>
+                            <option value="Awalpur">Awalpur</option>
+                            <option value="Manikgarh">Manikgarh</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="user-email-field">
+                        <label for="new-user-email">Email Address (Optional)</label>
+                        <input type="email" id="new-user-email" placeholder="e.g. employee@company.com">
+                    </div>
+                    <div class="form-group" id="user-credentials-fields">
+                        <label for="new-user-password">Initial Password</label>
+                        <input type="password" id="new-user-password" required>
+                    </div>
+                    <div id="create-user-error" class="alert alert-danger hidden mt-2">
+                        PS Number is already registered!
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline btn-sm"
+                            onclick="app.closeModal('create-user-modal')">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Create User</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- MODAL: Create Maintenance -->
+        <div id="create-maintenance-modal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3>Schedule Servicing</h3>
+                    <button class="modal-close" onclick="app.closeModal('create-maintenance-modal')"
+                        aria-label="Close modal">&times;</button>
+                </div>
+                <form id="create-maintenance-form" onsubmit="app.handleCreateMaintenance(event)">
+                    <div class="form-group">
+                        <label for="maint-bus-id">Select Bus</label>
+                        <select id="maint-bus-id" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="maint-date">Scheduled Date</label>
+                        <input type="date" id="maint-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="maint-desc">Maintenance Description (Max 500 chars)</label>
+                        <textarea id="maint-desc" rows="3" maxlength="500" required
+                            placeholder="Engine service, brake check, tyre change, etc."></textarea>
+                    </div>
+
+                    <div id="maintenance-conflict-alert" class="alert alert-warning hidden mt-2">
+                        <strong>Warning!</strong> A bus shift is scheduled for this date. Would you like to proceed
+                        anyway?
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline btn-sm"
+                            onclick="app.closeModal('create-maintenance-modal')">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm" id="maint-submit-btn">Save
+                            Schedule</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- MODAL: Driver Assignment Conflict Warning -->
+        <div id="driver-conflict-modal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3>Driver Schedule Conflict</h3>
+                    <button class="modal-close" onclick="app.closeModal('driver-conflict-modal')"
+                        aria-label="Close modal">&times;</button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="alert alert-warning">
+                        <strong>Warning!</strong> The selected driver is already assigned to a shift on the same
+                        calendar day.
+                    </p>
+                    <p class="mt-2 text-sm">Do you want to confirm this assignment overriding the conflict warning?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline btn-sm"
+                        onclick="app.closeModal('driver-conflict-modal')">Cancel</button>
+                    <button class="btn btn-primary btn-sm" onclick="app.confirmDriverAssignment()">Confirm &
+                        Override</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Payment Gateway Checkout -->
+        <div id="payment-gateway-modal" class="modal-overlay hidden">
+            <div class="modal-card payment-modal-card">
+                <div class="modal-header payment-header">
+                    <div class="payment-title-group">
+                        <span class="payment-lock-icon">📑’</span>
+                        <h3>UTCL Secure Pay</h3>
+                    </div>
+                    <button class="modal-close" onclick="app.cancelPayment()" aria-label="Close modal">&times;</button>
+                </div>
+                <div class="modal-body p-5">
+                    <!-- Order Details Summary -->
+                    <div class="payment-summary-box mb-4">
+                        <div class="flex-between">
+                            <span class="text-xs text-muted">Passenger</span>
+                            <strong id="pay-sum-name" class="text-xs">Rohan Sharma</strong>
+                        </div>
+                        <div class="flex-between mt-1">
+                            <span class="text-xs text-muted">Route & Seat</span>
+                            <strong id="pay-sum-route-seat" class="text-xs">Awalpur → Chandrapur (Seat 12)</strong>
+                        </div>
+                        <div class="flex-between mt-2 pt-2 border-t">
+                            <span class="text-sm font-bold">Total Fare</span>
+                            <strong id="pay-sum-total" class="text-primary text-lg">₹20.00</strong>
+                        </div>
+                    </div>
+
+                    <!-- UPI / QR Code Payment (Default) -->
+                    <div id="pay-method-upi" class="pay-method-form text-center mt-4">
+                        <p class="text-xs text-muted mb-2">Scan QR code using Google Pay, PhonePe, or Paytm</p>
+                        <div class="pay-qr-container mb-3 flex-center">
+                            <div id="pay-qr-code-box" class="qr-placeholder">
+                                <!-- Dynamic image tag will be placed here -->
+                            </div>
+                        </div>
+                        <button class="btn btn-success btn-sm btn-block" onclick="app.processPayment('upi')">VERIFY UPI
+                            PAYMENT</button>
+                    </div>
+
+                    <!-- Overlay: Processing State -->
+                    <div id="pay-processing-overlay" class="pay-overlay hidden flex-center flex-column">
+                        <div class="spinner-icon"></div>
+                        <p class="mt-4 font-bold text-sm">Processing Transaction Safely...</p>
+                        <p class="text-xxs text-muted mt-1">Please do not refresh or click back</p>
+                    </div>
+
+                    <!-- Overlay: Success State -->
+                    <div id="pay-success-overlay" class="pay-overlay hidden flex-center flex-column">
+                        <div class="success-checkmark">
+                            <div class="check-icon"></div>
+                        </div>
+                        <p class="mt-4 font-bold text-sm text-success">Payment Successful!</p>
+                        <p class="text-xxs text-muted mt-1">Generating e-ticket...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Cancel Booking Confirmation -->
+        <div id="cancel-confirm-modal" class="modal-overlay hidden">
+            <div class="modal-card" style="max-width: 440px;">
+                <div class="modal-header">
+                    <h3>Cancel Booking?</h3>
+                    <button class="modal-close" onclick="app.closeModal('cancel-confirm-modal')"
+                        aria-label="Close modal">&times;</button>
+                </div>
+                <div class="modal-body p-5">
+                    <div class="alert alert-warning" style="margin-bottom: 0;">
+                        <strong>⚠️ Are you sure?</strong><br>
+                        This action will <strong>immediately release your seat</strong> and cannot be undone.
+                        Other users will be able to book this seat instantly.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline btn-sm"
+                        onclick="app.closeModal('cancel-confirm-modal')">Keep Booking</button>
+                    <button type="button" class="btn btn-danger btn-sm" id="confirm-cancel-btn"
+                        onclick="app.confirmCancelBooking()">Yes, Cancel It</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Admin Ticket View -->
+        <div id="admin-ticket-modal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3>Virtual Ticket Details</h3>
+                    <button class="modal-close" onclick="app.closeModal('admin-ticket-modal')"
+                        aria-label="Close modal">&times;</button>
+                </div>
+                <div class="modal-body flex-center" style="padding: 20px; align-items: flex-start;">
+                    <div id="admin-ticket-card-content" style="width: 100%; display: flex; justify-content: center;">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="admin-cancel-booking-btn" class="btn btn-danger btn-sm hidden"
+                        onclick="app.adminCancelBooking()">Cancel Booking</button>
+                    <button type="button" class="btn btn-primary btn-sm"
+                        onclick="app.closeModal('admin-ticket-modal')">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Change Password (Self Service) -->
+        <div id="change-password-modal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3>Change Password</h3>
+                    <button class="modal-close" onclick="app.closeModal('change-password-modal')"
+                        aria-label="Close modal">&times;</button>
+                </div>
+                <div class="modal-body p-5">
+                    <div class="form-group">
+                        <label for="cp-current-password">CURRENT PASSWORD</label>
+                        <input type="password" id="cp-current-password" placeholder="••••••••">
+                    </div>
+                    <div class="form-group">
+                        <label for="cp-new-password">NEW PASSWORD</label>
+                        <input type="password" id="cp-new-password" placeholder="••••••••">
+                    </div>
+                    <div class="form-group">
+                        <label for="cp-confirm-password">CONFIRM NEW PASSWORD</label>
+                        <input type="password" id="cp-confirm-password" placeholder="••••••••">
+                    </div>
+                    <div id="cp-error" class="alert alert-danger hidden mb-4"></div>
+                    <button class="btn btn-primary btn-block font-outfit" onclick="app.submitChangePassword()">UPDATE
+                        PASSWORD</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Admin Reset User Password -->
+        <div id="admin-reset-password-modal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3>Reset User Password</h3>
+                    <button class="modal-close" onclick="app.closeModal('admin-reset-password-modal')"
+                        aria-label="Close modal">&times;</button>
+                </div>
+                <div class="modal-body p-5">
+                    <p class="text-sm text-muted mb-4">Set a new password for <strong
+                            id="admin-reset-user-name">Employee Name</strong> (<span
+                            id="admin-reset-user-ps">PS10001</span>).</p>
+                    <input type="hidden" id="admin-reset-user-target-ps">
+
+                    <div class="form-group">
+                        <label for="admin-reset-new-password">NEW PASSWORD</label>
+                        <input type="password" id="admin-reset-new-password" placeholder="••••••••">
+                    </div>
+                    <div class="form-group">
+                        <label for="admin-reset-confirm-password">CONFIRM NEW PASSWORD</label>
+                        <input type="password" id="admin-reset-confirm-password" placeholder="••••••••">
+                    </div>
+                    <div id="admin-reset-error" class="alert alert-danger hidden mb-4"></div>
+                    <button class="btn btn-warning btn-block font-outfit" onclick="app.submitAdminResetPassword()">RESET
+                        PASSWORD</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Inactivity Warning -->
+        <div id="inactivity-modal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3>Session Inactivity Timeout</h3>
+                </div>
+                <div class="modal-body p-4">
+                    <p>Your session has been inactive for 25 minutes.</p>
+                    <p class="mt-2 text-sm text-primary font-bold">You will be automatically logged out in 5 minutes if
+                        you do not click Keep Session Active.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary btn-sm btn-block" onclick="app.refreshActivity()">Keep Session
+                        Active</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Admin Attendance Photo Review -->
+        <div id="admin-attendance-modal" class="modal-overlay hidden">
+            <div class="modal-card" style="max-width: 800px; width: 90%;">
+                <div class="modal-header">
+                    <h3 id="admin-attendance-modal-title">Review Trip Attendance Photos</h3>
+                    <button class="modal-close" onclick="app.closeModal('admin-attendance-modal')"
+                        aria-label="Close modal">&times;</button>
+                </div>
+                <div class="modal-body p-6">
+                    <div class="attendance-review-grid"
+                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="photo-review-card p-4 border rounded text-center">
+                            <h4 class="font-outfit text-sm text-primary mb-2">Departure Photo</h4>
+                            <div class="preview-img-box mb-3"
+                                style="height: 250px; background: #F1F5F9; border-radius: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #E2E8F0;">
+                                <img id="admin-review-dep-img" src=""
+                                    style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                            </div>
+                            <div class="text-xs text-muted" id="admin-review-dep-time">Logged at: --</div>
+                            <div class="text-xs font-semibold mt-1" style="color: var(--utcl-blue);">📍 GPS Verified
+                                (Departure Point)</div>
+                        </div>
+                        <div class="photo-review-card p-4 border rounded text-center">
+                            <h4 class="font-outfit text-sm text-primary mb-2">Arrival Photo</h4>
+                            <div class="preview-img-box mb-3"
+                                style="height: 250px; background: #F1F5F9; border-radius: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #E2E8F0;">
+                                <img id="admin-review-arr-img" src=""
+                                    style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                            </div>
+                            <div class="text-xs text-muted" id="admin-review-arr-time">Logged at: --</div>
+                            <div class="text-xs font-semibold mt-1" style="color: var(--utcl-blue);">📍 GPS Verified
+                                (Destination Point)</div>
+                        </div>
+                    </div>
+                    <div id="attendance-action-error" class="alert alert-danger hidden mt-4"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline btn-sm"
+                        onclick="app.closeModal('admin-attendance-modal')">Cancel</button>
+                    <button id="admin-attendance-reject-btn" type="button" class="btn btn-danger btn-sm"
+                        onclick="app.submitAttendanceApproval(false)">Reject Trip</button>
+                    <button id="admin-attendance-approve-btn" type="button" class="btn btn-success btn-sm"
+                        onclick="app.submitAttendanceApproval(true)">Approve Trip</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="app.js?v=1.0.1"></script>
+</body>
+
+</html>

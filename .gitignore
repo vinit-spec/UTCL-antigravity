@@ -1,0 +1,54 @@
+# Python virtual environment
+.venv/
+venv/
+ENV/
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local secrets and configs
+db_config.json
+smtp_config.json
+brevo_config.json
+.env
+.env.*
+
+# Logs
+*.log
+server.log*
+
+# User uploads (driver attendance verification photos)
+uploads/dep_*
+uploads/arr_*
+
+# IDE & agent scratch directories
+.gemini/
+.agents/
+.vscode/
+
+# Local environment variables
+.env
+*.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Scratch and verification scripts
+verify_security.py
+verify_db_fixes.py
+
+# Fix #4: Large binary / sensitive data files — must not be in the repo
+# cloudflared binary (54 MB) bloats the deployment image
+cloudflared.exe
+cloudflared
+# Payroll exports and any Excel files with employee data
+*.xlsx
+*.xls
+*.csv
+
+# Scratch scripts directory
+scratch/
+
