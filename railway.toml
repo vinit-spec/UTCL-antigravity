@@ -6,7 +6,7 @@ builder = "nixpacks"
 
 [deploy]
 # Must match the Procfile exactly
-startCommand = "gunicorn --worker-class gevent --workers 1 --bind 0.0.0.0:$PORT server:app"
+startCommand = "gunicorn --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker --workers 1 --bind 0.0.0.0:$PORT server:app"
 
 # Railway polls this path after every deploy to confirm the service is healthy.
 # /api/health returns 200 when Flask + MySQL are both up, 503 if DB is unreachable.
