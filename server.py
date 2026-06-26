@@ -205,6 +205,8 @@ _BLOCKED_STATIC_EXTENSIONS = {
 @app.before_request
 def redirect_to_https():
     """Redirect HTTP traffic to HTTPS in production environments."""
+    if request.path == '/api/health':
+        return None
     if request.headers.get('X-Forwarded-Proto', 'http') == 'http':
         host = request.headers.get('Host', '')
         if not any(x in host for x in ['localhost', '127.0.0.1', '192.168.']):
