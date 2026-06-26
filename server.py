@@ -947,8 +947,7 @@ def init_db():
         print(f"Error connecting to/initializing MySQL Database: {e}")
         db_error_message = str(e)
 
-# Initialize database at startup
-init_db()
+# Initialize database at startup (deferred to background thread at the end of the file)
 
 def check_token_validity(token):
     if not token:
@@ -5772,12 +5771,18 @@ def health_check():
     }), http_code
 # =============================================================================
 
-# Fix #1: Start background tasks at MODULE level so they run under Gunicorn too.
-# Previously these were only called inside `if __name__ == '__main__':` which
-# Gunicorn never enters — meaning photo cleanup and shift-lock broadcasting
-# were completely inactive in production.
-start_photo_cleanup_scheduler()
-start_shift_lock_broadcaster()
+# Run database and scheduler initialization in a deferred background thread.
+# This prevents Gunicorn's import phase from blocking, allowing Gunicorn to enter
+# the event loop and accept connections immediately before executing heavy startup operations.
+def deferred_startup():
+    time.sleep(2)
+    print("[Startup] Running deferred database and scheduler initialization...")
+    init_db()
+    start_photo_cleanup_scheduler()
+    start_shift_lock_broadcaster()
+    print("[Startup] Deferred initialization complete.")
+
+threading.Thread(target=deferred_startup, daemon=True).start()
 
 if __name__ == '__main__':
 
