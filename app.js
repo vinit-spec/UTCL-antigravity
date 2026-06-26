@@ -2474,6 +2474,10 @@ class UTCLBusSystem {
             // Hide schedule and maintenance sections (Requirement 6.2)
             shiftsContainer.closest('.glass-panel').classList.add('hidden');
             maintenanceContainer.closest('.glass-panel').classList.add('hidden');
+            
+            // Hide attendance card for unassigned drivers
+            const attendanceCard = document.getElementById('driver-attendance-card');
+            if (attendanceCard) attendanceCard.style.display = 'none';
             return;
         }
 
@@ -2529,7 +2533,6 @@ class UTCLBusSystem {
 
         const upcomingMaint = maintenance.filter(m =>
             assignedBusIds.has(m.busId) &&
-            m.scheduledDate >= todayStr &&
             m.status !== 'COMPLETED'
         );
 
@@ -2749,10 +2752,10 @@ class UTCLBusSystem {
         const driverId = this.currentUser.psNumber;
         const date = this.getTodayString();
 
-        // Get bus ID
-        let busId = '';
-        if (this.currentUser.id === 'u6') busId = 'b1';
-        else if (this.currentUser.id === 'u7') busId = 'b2';
+        // Get bus ID dynamically from shift information
+        const shifts = this.getItems('utcl_shifts');
+        const shift = shifts.find(s => s.id === shiftId);
+        const busId = shift ? shift.busId : '';
 
         const fileInput = document.getElementById('driver-upload-dep-file');
         if (!fileInput || fileInput.files.length === 0) {

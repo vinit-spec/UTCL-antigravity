@@ -3717,6 +3717,7 @@ def sync_table():
                     cursor.executemany(stmt, rows)
                 
         conn.commit()
+        invalidate_data_cache()
         transaction_started = False
         cursor.close()
         conn.close()
