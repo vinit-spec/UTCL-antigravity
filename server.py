@@ -5762,7 +5762,8 @@ def health_check():
     except Exception as e:
         print(f"[Health] DB check failed: {e}")
     status = "ok" if db_ok else "degraded"
-    http_code = 200 if db_ok else 503
+    # Return 200 always to prevent Railway deployment rollback loops when DB is booting
+    http_code = 200
     return jsonify({
         "status": status,
         "db": "connected" if db_ok else "disconnected",
