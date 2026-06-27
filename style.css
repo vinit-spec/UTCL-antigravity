@@ -584,7 +584,7 @@ select option {
     font-size: 0.725rem !important;
     color: var(--text-muted) !important;
     font-family: var(--font-body) !important;
-    user-select: auto !important;
+    user-select: text !important;
     pointer-events: auto !important;
     opacity: 1 !important;
     visibility: visible !important;
@@ -593,19 +593,24 @@ select option {
 }
 .dev-watermark-text {
     color: var(--text-muted) !important;
+    user-select: text !important;
+    pointer-events: auto !important;
 }
 .dev-watermark-text strong {
     color: var(--text-muted) !important;
     font-weight: 600 !important;
+    user-select: text !important;
 }
 .dev-watermark-text a {
-    color: var(--text-muted) !important;
-    text-decoration: none !important;
+    color: var(--utcl-blue) !important;
+    text-decoration: underline !important;
+    cursor: pointer !important;
     pointer-events: auto !important;
-    transition: color 0.2s ease;
+    user-select: text !important;
+    transition: opacity 0.2s ease;
 }
 .dev-watermark-text a:hover {
-    color: var(--utcl-blue) !important;
+    opacity: 0.8 !important;
     text-decoration: underline !important;
 }
 .dev-watermark-sep {
