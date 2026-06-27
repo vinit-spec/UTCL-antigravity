@@ -524,6 +524,11 @@ select option {
     justify-content: center;
     margin-bottom: 24px;
 }
+.login-logo-container svg {
+    width: 100%;
+    max-width: 220px;
+    height: auto;
+}
 
 .role-selector-tabs {
     display: flex;
@@ -2925,6 +2930,18 @@ button.user-profile-badge {
    MOBILE RESPONSIVE ACTIONS & LAYOUT ADAPTATIONS (max-width: 768px)
    ========================================================================== */
 @media (max-width: 768px) {
+    /* --- Login View Responsiveness --- */
+    .login-card {
+        padding: 28px 20px !important;
+        border-radius: 8px !important;
+    }
+    .login-logo-container {
+        margin-bottom: 20px !important;
+    }
+    .login-logo-container svg {
+        max-width: 170px !important;
+    }
+
     /* --- Main Container Adjustments --- */
     main {
         padding: 12px !important;
