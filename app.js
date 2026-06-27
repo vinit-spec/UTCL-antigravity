@@ -1628,6 +1628,12 @@ class UTCLBusSystem {
                 return;
             }
 
+            // Optimistic selection locally to block subsequent fast clicks
+            this.bookingData.seatNumbers.push(num);
+            this.bookingData.seatNumber = this.bookingData.seatNumbers.join(', ');
+            this.renderSeatMap();
+            this.updateSeatSelectionCounter();
+
             // Select: emit select_seat with callback for race-condition prevention
             if (this.socket && this.socket.connected) {
                 this.socket.emit('select_seat', {
@@ -1639,24 +1645,20 @@ class UTCLBusSystem {
                     if (response && response.status === 'error') {
                         // Reject with error message
                         this.showLiveUpdateBar(`⚠️ ${response.message}`, 5000);
-                        // Make sure it doesn't get rendered selected
+                        // Remove the optimistically added seat
                         this.bookingData.seatNumbers = this.bookingData.seatNumbers.filter(s => s !== num);
                         this.bookingData.seatNumber = this.bookingData.seatNumbers.join(', ');
                         this.renderSeatMap();
+                        this.updateSeatSelectionCounter();
                     } else {
-                        // Successfully selected
-                        if (!this.bookingData.seatNumbers.includes(num)) {
-                            this.bookingData.seatNumbers.push(num);
-                            this.bookingData.seatNumber = this.bookingData.seatNumbers.join(', ');
-                        }
-                        this.renderSeatMap();
+                        // Successfully selected on server. (Already added locally, just refresh UI/counter)
+                        this.updateSeatSelectionCounter();
                     }
                 });
             } else {
                 // If socket is disconnected, allow direct local selection (graceful degradation)
-                this.bookingData.seatNumbers.push(num);
-                this.bookingData.seatNumber = this.bookingData.seatNumbers.join(', ');
-                this.renderSeatMap();
+                // (Already added locally)
+                this.updateSeatSelectionCounter();
             }
         }
     }

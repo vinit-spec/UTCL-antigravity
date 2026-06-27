@@ -2160,7 +2160,7 @@ def handle_select_seat(data):
     room = f"{shift_id}_{travel_date}"
     current_time = time.time()
 
-    # 1. Verify that the seat is not permanently booked in MySQL database
+    # 1. Verify database-level status: seat availability and user daily limit
     try:
         config = load_db_config()
         conn = mysql.connector.connect(
@@ -2171,16 +2171,44 @@ def handle_select_seat(data):
             database=config.get('database', 'utcl_bus_db')
         )
         cursor = conn.cursor()
+        
+        # Check if the seat is already permanently booked
         cursor.execute(
             "SELECT COUNT(*) FROM bookings WHERE shiftId=%s AND travelDate=%s AND status='CONFIRMED' "
             "AND (seatNumber = %s OR FIND_IN_SET(%s, REPLACE(seatNumber, ' ', '')))",
             (shift_id, travel_date, str(seat_num), str(seat_num))
         )
         count = cursor.fetchone()[0]
+        if count > 0:
+            cursor.close()
+            conn.close()
+            return {'status': 'error', 'message': f'Seat {seat_num} is already permanently booked.'}
+
+        # Check shift direction
+        cursor.execute("SELECT direction FROM shifts WHERE id = %s", (shift_id,))
+        shift_row = cursor.fetchone()
+        if not shift_row:
+            cursor.close()
+            conn.close()
+            return {'status': 'error', 'message': 'Invalid shift ID'}
+        direction = shift_row[0]
+
+        # Get existing booking count in this direction
+        cursor.execute(
+            "SELECT b.seatNumber, s.direction FROM bookings b "
+            "JOIN shifts s ON b.shiftId = s.id "
+            "WHERE b.psNumber = %s AND b.travelDate = %s AND b.status = 'CONFIRMED'",
+            (ps_number, travel_date)
+        )
+        existing_bookings = cursor.fetchall()
+        booked_count = 0
+        for b_row in existing_bookings:
+            if b_row[1] == direction:
+                seats = [s.strip() for s in str(b_row[0]).split(',') if s.strip()]
+                booked_count += len(seats)
+
         cursor.close()
         conn.close()
-        if count > 0:
-            return {'status': 'error', 'message': f'Seat {seat_num} is already permanently booked.'}
     except Exception as e:
         return {'status': 'error', 'message': f'Database error: {str(e)}'}
 
@@ -2197,6 +2225,15 @@ def handle_select_seat(data):
                     return {'status': 'error', 'message': 'This seat was just held by another user.'}
                 else:
                     return {'status': 'success'}  # Already held by this user
+
+        # Count user's holds in this room
+        held_in_room = 0
+        for s_num, h_info in holds[room].items():
+            if h_info["psNumber"] == ps_number and h_info["expires_at"] > current_time:
+                held_in_room += 1
+        
+        if booked_count + held_in_room >= 4:
+            return {'status': 'error', 'message': 'You have reached the daily limit of 4 seats in this direction today.'}
 
         # Create temporary hold timer
         expires_at = current_time + HOLD_DURATION
@@ -3124,19 +3161,45 @@ def create_booking():
             }), 400
 
         # ── Row Lock the Shift Row to serialize bookings for this shift ───────
-        cursor.execute("SELECT id, departureTime FROM shifts WHERE id = %s FOR UPDATE", (shift_id,))
+        cursor.execute("SELECT id, departureTime, direction FROM shifts WHERE id = %s FOR UPDATE", (shift_id,))
         shift_row = cursor.fetchone()
-        if shift_row:
-            dep_time_str = shift_row.get('departureTime')
-            if dep_time_str and is_shift_locked(dep_time_str, travel_date):
-                conn.rollback()
-                return jsonify({
-                    "status": "error",
-                    "message": "Cannot book — this shift is locked (within 5 minutes of departure or already departed)."
-                }), 400
+        if not shift_row:
+            conn.rollback()
+            return jsonify({"status": "error", "message": "Invalid shift ID"}), 400
 
-        # ── Verify requested seats are still free (serial check) ──────────────
+        dep_time_str = shift_row.get('departureTime')
+        if dep_time_str and is_shift_locked(dep_time_str, travel_date):
+            conn.rollback()
+            return jsonify({
+                "status": "error",
+                "message": "Cannot book — this shift is locked (within 5 minutes of departure or already departed)."
+            }), 400
+
+        direction = shift_row.get('direction')
+
+        # ── Verify daily limit of 4 seats per direction ───────────────────────
         requested_seats = [int(s.strip()) for s in seat_str.split(',') if s.strip().isdigit()]
+        
+        cursor.execute(
+            "SELECT b.seatNumber, s.direction FROM bookings b "
+            "JOIN shifts s ON b.shiftId = s.id "
+            "WHERE b.psNumber = %s AND b.travelDate = %s AND b.status = 'CONFIRMED'",
+            (ps_number, travel_date)
+        )
+        existing_bookings = cursor.fetchall()
+        booked_count = 0
+        for b_row in existing_bookings:
+            if b_row['direction'] == direction:
+                seats = [s.strip() for s in str(b_row['seatNumber']).split(',') if s.strip()]
+                booked_count += len(seats)
+
+        new_seats_count = len(requested_seats)
+        if booked_count + new_seats_count > 4:
+            conn.rollback()
+            return jsonify({
+                "status": "error",
+                "message": f"Daily limit exceeded. You have already booked {booked_count} seat(s) in this direction today. Max limit is 4."
+            }), 400
         
         # Validation for 50-seat bus layout (passenger seats must be in range 2-50, seat 1 is conductor only)
         if requested_seats:
