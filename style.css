@@ -585,7 +585,7 @@ select option {
     color: var(--text-muted) !important;
     font-family: var(--font-body) !important;
     user-select: none !important;
-    pointer-events: none !important;
+    pointer-events: auto !important;
     opacity: 1 !important;
     visibility: visible !important;
     box-shadow: none !important;
@@ -594,9 +594,20 @@ select option {
 .dev-watermark-text {
     color: var(--text-muted) !important;
 }
-.dev-watermark-text strong {
+.dev-link {
+    color: inherit !important;
+    text-decoration: none !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+.dev-link strong {
     color: var(--text-muted) !important;
     font-weight: 600 !important;
+    text-decoration: underline !important;
+    transition: color 0.2s ease;
+}
+.dev-link:hover strong {
+    color: var(--utcl-blue) !important;
 }
 .dev-watermark-sep {
     color: var(--text-muted) !important;
