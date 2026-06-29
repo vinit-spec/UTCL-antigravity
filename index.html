@@ -293,12 +293,7 @@
                                             ℹ️ Choose your seats on the interactive bus layout on the right. You can select up to <span id="max-seats-label" class="font-bold">4</span> seat(s).
                                         </div>
 
-                                        <div class="step-actions mt-6">
-                                            <button class="btn btn-outline btn-sm"
-                                                onclick="app.changeStep('schedule')">Back</button>
-                                            <button class="btn btn-primary btn-sm" id="btn-to-stops"
-                                                onclick="app.changeStep('stops')" disabled>Proceed to Details</button>
-                                        </div>
+
                                     </div>
 
                                     <!-- Booking Step 3: Stops & Details -->
@@ -487,6 +482,13 @@
                                             style="border-top: 1px dashed var(--border-color); padding-top: 12px; margin-top: 16px;">
                                             <span id="seat-selection-counter"
                                                 class="font-bold text-primary text-sm">Seats Selected: 0 / 1</span>
+                                        </div>
+
+                                        <div class="step-actions mt-6">
+                                            <button class="btn btn-outline btn-sm"
+                                                onclick="app.changeStep('schedule')">Back</button>
+                                            <button class="btn btn-primary btn-sm" id="btn-to-stops"
+                                                onclick="app.changeStep('stops')" disabled>Proceed to Details</button>
                                         </div>
                                     </div>
 
