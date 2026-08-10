@@ -1,0 +1,7 @@
+{
+  "smtp_host": "127.0.0.1",
+  "smtp_port": 587,
+  "smtp_user": "utcl-bus-system@example.com",
+  "smtp_password": "YOUR_SMTP_PASSWORD_HERE",
+  "use_tls": true
+}

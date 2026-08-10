@@ -2,53 +2,69 @@
 .venv/
 venv/
 ENV/
+env/
 
 # Python cache and compiled files
 __pycache__/
 *.py[cod]
 *$py.class
 
-# Local secrets and configs
+# Local secrets, credentials, and environment variables
+.env
+.env.*
+*.env
 db_config.json
 smtp_config.json
 brevo_config.json
-.env
-.env.*
+config.json
+secrets.json
 
-# Logs
+# Server logs and runtime data
 *.log
 server.log*
+logs/
 
-# User uploads (driver attendance verification photos)
-uploads/dep_*
-uploads/arr_*
+# User uploads and media (keep directory structure via .gitkeep)
+uploads/*
+!uploads/.gitkeep
 
-# IDE & agent scratch directories
+# IDE, agent, and editor scratch directories
 .gemini/
 .agents/
 .vscode/
+.idea/
+*.swp
+*.swo
 
-# Local environment variables
-.env
-*.env
-
-# OS files
+# OS temporary files & Office lock files
 .DS_Store
 Thumbs.db
+~$*.docx
+~$*.xlsx
 
-# Scratch and verification scripts
-verify_security.py
-verify_db_fixes.py
-
-# Fix #4: Large binary / sensitive data files — must not be in the repo
-# cloudflared binary (54 MB) bloats the deployment image
+# Executables & large binary files
 cloudflared.exe
 cloudflared
-# Payroll exports and any Excel files with employee data
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Confidential data exports, spreadsheets & reports
 *.xlsx
 *.xls
 *.csv
+*.docx
+*.doc
+*.pdf
 
-# Scratch scripts directory
+# Backups & temporary backup files
+backup/
+*.bak
+*.backup
+*.tmp
+
+# Local scratch and debug scripts
 scratch/
-
+verify_security.py
+verify_db_fixes.py
