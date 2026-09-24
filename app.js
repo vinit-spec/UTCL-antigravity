@@ -536,8 +536,8 @@ class UTCLBusSystem {
                 body: JSON.stringify({ psNumber: psInput })
             });
             
-            if (!res.ok) throw new Error("Server error, failed to send OTP.");
             const data = await res.json();
+            if (!res.ok) throw new Error(data.message || "Server error, failed to send OTP.");
             
             if (data.status === 'user_not_found') {
                 errAlert.textContent = "PS Number not found in system.";

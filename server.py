@@ -1458,7 +1458,12 @@ def auth_forgot_password():
         conn.close()
         
         # Send email OTP via Brevo
-        send_otp_email(email, user.get('name', 'Valued Employee'), otp)
+        email_sent = send_otp_email(email, user.get('name', 'Valued Employee'), otp)
+        if not email_sent:
+            return jsonify({
+                "status": "error",
+                "message": "Failed to send OTP email. Please ensure BREVO_SENDER_EMAIL in Render is set to your verified Brevo account email."
+            }), 500
         
         # Mask the email to return to frontend (e.g. r****@adityabirla.com)
         parts = email.split('@')
