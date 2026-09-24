@@ -367,9 +367,12 @@ def get_db_pool():
                 config = load_db_config()
                 _local_state.initializing_pool = True
                 try:
+                    # Aiven free tier has a strict connection limit (~20-25 total).
+                    # Use pool_size=5 in cloud mode to prevent "1040: Too many connections".
+                    pool_size = 5 if 'MYSQLHOST' in os.environ else 32
                     pool_kwargs = dict(
                         pool_name="utcl_pool",
-                        pool_size=32,
+                        pool_size=pool_size,
                         pool_reset_session=True,
                         host=config['host'],
                         port=config['port'],
