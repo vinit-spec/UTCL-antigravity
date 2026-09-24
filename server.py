@@ -249,7 +249,13 @@ def request_entity_too_large(error):
     return jsonify({"status": "error", "message": "File size exceeds server-side limit (10 MB)"}), 413
 
 is_production = 'PORT' in os.environ or 'gunicorn' in sys.argv[0] or any('gunicorn' in arg for arg in sys.argv)
-UPLOAD_FOLDER = '/app/uploads' if is_production else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+# Use platform-appropriate upload path:
+# - Render persistent disk mounts at /opt/render/project/src/uploads (or local src dir)
+# - Local dev uses the uploads/ folder next to server.py
+if is_production:
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+else:
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @app.route('/uploads/<filename>')
@@ -361,7 +367,7 @@ def get_db_pool():
                 config = load_db_config()
                 _local_state.initializing_pool = True
                 try:
-                    _db_pool = mysql_pooling.MySQLConnectionPool(
+                    pool_kwargs = dict(
                         pool_name="utcl_pool",
                         pool_size=32,
                         pool_reset_session=True,
@@ -372,6 +378,14 @@ def get_db_pool():
                         database=config.get('database', 'utcl_bus_db'),
                         use_pure=True
                     )
+                    # Aiven (and most cloud MySQL providers) require SSL.
+                    # When running in cloud mode (MYSQLHOST set), enable SSL without
+                    # strict cert verification so the self-signed Aiven CA works.
+                    if 'MYSQLHOST' in os.environ:
+                        pool_kwargs['ssl_disabled'] = False
+                        pool_kwargs['ssl_verify_cert'] = False
+                        pool_kwargs['ssl_verify_identity'] = False
+                    _db_pool = mysql_pooling.MySQLConnectionPool(**pool_kwargs)
                 finally:
                     _local_state.initializing_pool = False
     return _db_pool
@@ -411,13 +425,17 @@ def get_db_connection():
     config = load_db_config()
     # Check if we are running in the cloud with environment variables
     if "MYSQLHOST" in os.environ:
+        # Aiven requires SSL; disable strict cert verification for free-tier self-signed CA
         conn = _original_connect(
             host=config['host'],
             port=config['port'],
             user=config['user'],
             password=config['password'],
             database=config['database'],
-            use_pure=True
+            use_pure=True,
+            ssl_disabled=False,
+            ssl_verify_cert=False,
+            ssl_verify_identity=False
         )
         return conn, config
         

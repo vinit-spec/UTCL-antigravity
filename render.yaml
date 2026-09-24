@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: utcl-bus-system
+    runtime: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker --workers 1 --bind 0.0.0.0:$PORT server:app
+    healthCheckPath: /api/health
+    envVars:
+      - key: MYSQLHOST
+        sync: false   # Set manually in Render dashboard (Aiven host)
+      - key: MYSQLPORT
+        sync: false   # Set manually (Aiven port, e.g. 21775)
+      - key: MYSQLUSER
+        sync: false   # avnadmin
+      - key: MYSQLPASSWORD
+        sync: false   # Aiven auto-generated password
+      - key: MYSQLDATABASE
+        sync: false   # defaultdb
+      - key: ALLOWED_ORIGIN
+        sync: false   # https://utcl-bus-system.onrender.com
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SENDER_NAME
+        value: UTCL Bus System
